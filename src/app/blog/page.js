@@ -9,20 +9,29 @@ export const dynamic = 'force-dynamic';
 // revalidate: 60 (60 seconds) - look up again after 60 seconds and store it in memory
 // no store: will trigger it everytime blogpage is rendered
 async function getData() {
+  try {
     const domain = getDomain();
     const endpoint = `${domain}/api/posts`;
     const res = await fetch(endpoint, {
       cache: 'no-store' // Always fetch fresh data
     });
 
-  if (!res.ok) {
-    throw new Error("Failed to fetch data");
-  }
+    if (!res.ok) {
+      throw new Error(`Failed to fetch data: ${res.status} ${res.statusText}`);
+    }
 
-  if (res.headers.get("Content-Type") !== "application/json") {
-    return {items: []} }
-  return res.json();
- 
+    const contentType = res.headers.get("Content-Type");
+    if (!contentType || !contentType.includes("application/json")) {
+      return { items: [] };
+    }
+    
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    // Return empty data instead of throwing to prevent Server Component errors
+    return { items: [] };
+  }
 }
 
 export default async function BlogPage() {
