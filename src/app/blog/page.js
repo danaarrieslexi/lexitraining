@@ -1,4 +1,10 @@
 import getDomain from "../lib/getDomain";
+
+// fetch caching options - look up something and store it in memory
+
+// force-cache is default - look up only once when been built and thats it 
+// revalidate: 60 (60 seconds) - look up again after 60 seconds and store it in memory
+// no store: will trigger it everytime blogpage is rendered
 async function getData() {
   const domain = getDomain();
   const endpoint = `${domain}/api/posts`;
