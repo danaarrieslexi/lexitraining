@@ -10,9 +10,9 @@ async function getData() {
   const endpoint = `${domain}/api/posts`;
   const res = await fetch(endpoint);
 
-  if (!res.ok) {
-    throw new Error("Failed to fetch data");
-  }
+    if (!res.ok) {
+      throw new Error("Failed to fetch data");
+    }
 
   if (res.headers.get("Content-Type") !== "application/json") {
     return {items: []} }
