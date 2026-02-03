@@ -13,7 +13,7 @@ export default function Error({ error, reset }) {
 
   return (
     <div>
-      <h1>Something went wrong!</h1>
+      <h1>Something went wrong!!</h1>
       <p>{error?.message || error?.toString() || "An unknown error occurred"}</p>
       <button onClick={retryRequesthandler}>Retry Request</button>
     </div>
