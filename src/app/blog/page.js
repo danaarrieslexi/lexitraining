@@ -31,7 +31,11 @@ export default async function BlogPage() {
   return (
     <main>
       <h1>Dana was here</h1>
-      {data && JSON.stringify(data)}
+      {data ? (
+        <pre>{JSON.stringify(data, null, 2)}</pre>
+      ) : (
+        <p>No data available</p>
+      )}
     </main>
   );
 }
