@@ -1,20 +1,17 @@
-import { drizzle } from 'drizzle-orm/neon-serverless';
 import { neon } from '@neondatabase/serverless';
-import { LinksTable } from './schema';
 
-// Get database connection - don't throw at module load time
+// Get database connection - lazy initialization for Vercel compatibility
+let sql = null;
+
 function getSql() {
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL environment variable is not set.');
   }
-  return neon(process.env.DATABASE_URL);
+  if (!sql) {
+    sql = neon(process.env.DATABASE_URL);
+  }
+  return sql;
 }
-
-// Initialize SQL client
-const sql = process.env.DATABASE_URL ? getSql() : null;
-
-// Initialize Drizzle with the Neon serverless client
-const db = sql ? drizzle(sql) : null;
 
 export async function helloWorld() {
   if (!sql) {
@@ -59,16 +56,15 @@ export async function helloWorld() {
 
 export async function addLink(url) {
   if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL environment variable is not set.');
-  }
-  
-  if (!sql) {
-    throw new Error('Database connection not available. Please check DATABASE_URL.');
+    throw new Error('DATABASE_URL environment variable is not set. Please add it in Vercel project settings.');
   }
   
   try {
+    // Get SQL client (lazy initialization)
+    const db = getSql();
+    
     // Use direct SQL insert - more reliable with Neon
-    const result = await sql`
+    const result = await db`
       INSERT INTO links (url) 
       VALUES (${url}) 
       RETURNING id, url, short, created_at
