@@ -27,6 +27,15 @@ export default async function BlogPage() {
     </main>
   );
 }
-
-export const runtime = 'edge'; //node.js
+export const runtime = 'edge'; //node.js -- whenever you use Neon
 export const preferredRegion = 'iad1'; //use the closest region to the user
+
+
+async function configureDatabase() {
+  const dbConfig = await configureDatabase();
+  console.log("Database configuration:", dbConfig);
+}
+
+configureDatabase().catch(error => {
+  console.log('Error configuring database:', error);
+});
