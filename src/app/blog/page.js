@@ -1,6 +1,6 @@
 import { getPosts } from "../lib/posts";
-
-// Make this page dynamic - don't try to pre-render at build time
+import Blogcard from './card'
+//Make this page dynamic - don't try to pre-render at build time
 export const dynamic = 'force-dynamic';
 
 // Direct data fetching (recommended for Server Components)
