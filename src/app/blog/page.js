@@ -1,5 +1,7 @@
 import { getPosts } from "../lib/posts";
-import Blogcard from './card'
+import Blogcard from './card';
+import { helloWorld } from '../lib/db';
+
 //Make this page dynamic - don't try to pre-render at build time
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +14,8 @@ async function getData() {
 
 export default async function BlogPage() {
   const data = await getData();
-  //console.log(data);
+  const dbHello = await helloWorld();
+  console.log(dbHello);
   return (
     <main>
       <h1>Dana was here</h1>
