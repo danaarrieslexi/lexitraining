@@ -27,3 +27,6 @@ export default async function BlogPage() {
     </main>
   );
 }
+
+export const runtime = 'edge'; //node.js
+export const preferredRegion = 'iad1'; //use the closest region to the user
