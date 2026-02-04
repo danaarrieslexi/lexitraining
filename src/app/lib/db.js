@@ -62,13 +62,17 @@ export async function addLink(url) {
     throw new Error('DATABASE_URL environment variable is not set.');
   }
   
-  if (!sql || !db) {
+  if (!sql) {
     throw new Error('Database connection not available. Please check DATABASE_URL.');
   }
   
   try {
-    const newlink = { url: url };
-    const result = await db.insert(LinksTable).values(newlink).returning();
+    // Use direct SQL insert - more reliable with Neon
+    const result = await sql`
+      INSERT INTO links (url) 
+      VALUES (${url}) 
+      RETURNING id, url, short, created_at
+    `;
     
     if (!result || result.length === 0) {
       throw new Error('Failed to insert link - no result returned');
@@ -80,8 +84,27 @@ export async function addLink(url) {
     console.error('Error details:', {
       message: error?.message,
       code: error?.code,
-      detail: error?.detail
+      detail: error?.detail,
+      hint: error?.hint,
+      severity: error?.severity
     });
-    throw error;
+    
+    // Provide helpful error messages
+    if (error?.message?.includes('does not exist')) {
+      throw new Error(
+        'Table "links" does not exist. Please run: npx drizzle-kit push'
+      );
+    }
+    
+    if (error?.code) {
+      // PostgreSQL error codes
+      throw new Error(
+        `Database error (${error.code}): ${error.message || error.detail || 'Unknown error'}`
+      );
+    }
+    
+    throw new Error(
+      `Failed to insert link: ${error?.message || 'Unknown error'}`
+    );
   }
 }
