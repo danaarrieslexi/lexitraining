@@ -36,17 +36,27 @@ export async function helloWorld() {
 
   
 
-    async function configureDatabase() {
-      const start = new Date();
-      const [dbResponse] = await sql`CREATE TABLE "links" (
+async function configureDatabase() {
+  const start = new Date();
+  const [dbResponse] = await sql`CREATE TABLE "links" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"url" text NOT NULL,
 	"short" varchar(50),
 	"created_at" timestamp DEFAULT now() NOT NULL
 );`;
-    console.log("Db response for new table:", dbResponse);
-    }
 
+
+await sql `CREATE TABLE "visits" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"link_id" integer NOT NULL,
+	"created_at" timestamp DEFAULT now()
+);`
+
+await sql 
+`ALTER TABLE "links" ALTER COLUMN "created_at" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "visits" ADD CONSTRAINT "visits_link_id_links_id_fk" FOREIGN KEY ("link_id") REFERENCES "public"."links"("id") ON DELETE no action ON UPDATE no action;`
+//console.log("Db response for new table:", dbResponse);
+    }
     configureDatabase().catch(error => {
       console.log('Error configuring database:', error);
       return {dbNow: "N/A", latency: "N/A"};
