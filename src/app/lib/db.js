@@ -1,11 +1,40 @@
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
-import { eq } from 'drizzle-orm';
-import { LinksTable, VisitsTable  } from './schema';
+import { desc,eq, sql as sqld, count} from 'drizzle-orm'; 
+import * as schema from './schema';
+import { getSessionUser } from './session';
+import { LinksTable, VisitsTable, LinksTableRelations, VisitsTableRelations  } from './schema';
 
 // Get database connection - lazy initialization for Vercel compatibility
 let sql = null;
 let db = null;
+async function configureDatabase() {
+
+sql`CREATE TABLE "links" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"url" text NOT NULL,
+	"short" varchar(50),
+	"user_id" integer,
+	"created_at" timestamp DEFAULT now()
+);`
+sql`CREATE TABLE "users" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"username" varchar(50) NOT NULL,
+	"password" text NOT NULL,
+	"email" text,
+	"created_at" timestamp DEFAULT now()
+);`
+
+sql`CREATE TABLE "visits" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"link_id" integer NOT NULL,
+	"created_at" timestamp DEFAULT now()
+);`
+
+sql`ALTER TABLE "links" ADD CONSTRAINT "links_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "visits" ADD CONSTRAINT "visits_link_id_links_id_fk" FOREIGN KEY ("link_id") REFERENCES "public"."links"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "username_idx" ON "users" USING btree ("username");`
+}
 
 function getSql() {
   if (!process.env.DATABASE_URL) {
@@ -20,59 +49,32 @@ function getSql() {
 function getDb() {
   if (!db) {
     const connection = getSql();
-    db = drizzle(connection);
+    db = drizzle(connection, { schema: { LinksTable, VisitsTable, LinksTableRelations, VisitsTableRelations } });
   }
   return db;
 }
 
 export async function helloWorld() {
-  if (!sql) {
-    throw new Error(
-      'DATABASE_URL environment variable is not set. ' +
-      'Please add it to your .env.local file or set it in your Vercel environment variables.'
-    );
-  }
-  
-  const [dbResponse] = await sql`SELECT NOW();`;
-  return dbResponse; }
+  const db = getSql();
+  const [dbResponse] = await db`SELECT NOW();`;
+  return dbResponse;
+}
 
   
 
-    async function CheckLatency() {
-      const start = new Date();
-      const [dbResponse] = await sql`SELECT NOW();`;
-      const dbNow = dbResponse && dbResponse.now ? dbResponse.now : ""
-      const end = new Date();
-      return{dbNow: dbNow, latency: Math.abs(end - start)};
-    }
-
-  
-
-async function configureDatabase() {
+async function CheckLatency() {
   const start = new Date();
-  const [dbResponse] = await sql`CREATE TABLE "links" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"url" text NOT NULL,
-	"short" varchar(50),
-	"created_at" timestamp DEFAULT now() NOT NULL
-);`;
+  const db = getSql();
+  const [dbResponse] = await db`SELECT NOW();`;
+  const dbNow = dbResponse && dbResponse.now ? dbResponse.now : ""
+  const end = new Date();
+  return {dbNow: dbNow, latency: Math.abs(end - start)};
+}
 
+  
 
-await sql `CREATE TABLE "visits" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"link_id" integer NOT NULL,
-	"created_at" timestamp DEFAULT now()
-);`
-
-await sql 
-`ALTER TABLE "links" ALTER COLUMN "created_at" DROP NOT NULL;--> statement-breakpoint
-ALTER TABLE "visits" ADD CONSTRAINT "visits_link_id_links_id_fk" FOREIGN KEY ("link_id") REFERENCES "public"."links"("id") ON DELETE no action ON UPDATE no action;`
-//console.log("Db response for new table:", dbResponse);
-    }
-    configureDatabase().catch(error => {
-      console.log('Error configuring database:', error);
-      return {dbNow: "N/A", latency: "N/A"};
-    });
+// Removed configureDatabase - tables should be created via migrations (drizzle-kit)
+// If you need to manually create tables, use: pnpm run db:push
 
 export async function getLinks(limit, offset) {
   const lookupLimit = limit ? limit : 10
@@ -80,7 +82,7 @@ export async function getLinks(limit, offset) {
   // Use raw SQL for Edge Runtime compatibility
   const db = getSql();
   return await db`
-    SELECT id, url, short, created_at 
+    SELECT id, url, short, created_at, userId 
     FROM links 
     ORDER BY created_at DESC
     LIMIT ${lookupLimit} OFFSET ${lookupOffset}
@@ -213,4 +215,60 @@ export async function addLink(url, shortCode = null) {
       `Failed to insert link: ${error?.message || 'Unknown error'}`
     );
   }
+}
+
+export async function getMinLinks(limit, offset, sessionUser = null) {
+  const lookupLimit = limit ? limit : 10
+  const lookupOffset = offset ? offset : 0
+  // Use raw SQL for Edge Runtime compatibility
+  const db = getSql();
+  // userId doesn't exist in schema, so we'll get all links
+  return await db`
+    SELECT id, url, created_at as timestamp
+    FROM links 
+    ORDER BY created_at DESC
+    LIMIT ${lookupLimit} OFFSET ${lookupOffset}
+  `;
+}
+
+export async function getMinLinksAndVisits(limit, offset, sessionUser = null) {
+  const lookupLimit = limit ? limit : 10
+  const lookupOffset = offset ? offset : 0
+  // Use raw SQL for Edge Runtime compatibility
+  const db = getSql();
+  
+  // Get links first - userId doesn't exist in schema, so we'll get all links
+  const links = await db`
+    SELECT id, url, short, created_at as "createdAt"
+    FROM links 
+    ORDER BY created_at DESC
+    LIMIT ${lookupLimit} OFFSET ${lookupOffset}
+  `;
+  
+  // Get visits for each link
+  const linksWithVisits = await Promise.all(
+    links.map(async (link) => {
+      // Get visits for this link
+      const visits = await db`
+        SELECT created_at as "createdAt"
+        FROM visits 
+        WHERE link_id = ${link.id}
+      `;
+      
+      // Get visit count
+      const [visitCount] = await db`
+        SELECT COUNT(*) as count
+        FROM visits 
+        WHERE link_id = ${link.id}
+      `;
+      
+      return {
+        ...link,
+        visits,
+        visitCount: visitCount?.count || 0
+      };
+    })
+  );
+  
+  return linksWithVisits;
 }

@@ -5,16 +5,27 @@ import getDomain from '../lib/getDomain'
 export const runtime = "edge"
 
 async function triggerVisit (linkId) {
-    const options = {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({linkId: linkId})
+    try {
+        const options = {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({linkId: linkId})
+        }
+        const domain = getDomain()
+        const endpoint = `${domain}/api/visits`
+        const response = await fetch(endpoint, options)
+        // Don't throw if visit logging fails - it's not critical
+        if (!response.ok) {
+            console.warn('Failed to log visit:', response.status)
+        }
+        return response
+    } catch (error) {
+        // Silently fail - visit logging is not critical
+        console.warn('Error logging visit:', error)
+        return null
     }
-    const domain = getDomain()
-    const endpoint = `${domain}/api/visits`
-    return await fetch(endpoint, options)
 }
 
 

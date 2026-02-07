@@ -23,7 +23,23 @@ export default function LinksCreateForm () {
             body: JSON.stringify(data),
           });
           
-          const result = await response.json();
+          // Check if response is JSON before parsing
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response received:', text.substring(0, 200));
+            setError('Server returned an error. Please check the console for details.');
+            return;
+          }
+          
+          let result;
+          try {
+            result = await response.json();
+          } catch (jsonError) {
+            console.error('Failed to parse JSON response:', jsonError);
+            setError('Invalid response from server. Please try again.');
+            return;
+          }
           
           if (response.ok) {
             console.log('Link added successfully:', result);
@@ -33,12 +49,17 @@ export default function LinksCreateForm () {
             // Clear success message after 3 seconds
             setTimeout(() => setSuccess(false), 3000);
           } else {
-            console.error('Error:', result);
+            console.error('Error response:', result);
             setError(result.message || result.error || 'Failed to add link');
           }
         } catch (error) {
           console.error('Failed to submit form:', error);
-          setError('Network error: ' + error.message);
+          // Check if it's the JSON parsing error
+          if (error.message && error.message.includes('JSON')) {
+            setError('Server returned an invalid response. Please try again.');
+          } else {
+            setError('Network error: ' + error.message);
+          }
         }
     }
 

@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1770200113051,
-      "tag": "0000_panoramic_lady_deathstrike",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1770276661206,
-      "tag": "0001_wakeful_human_torch",
+      "when": 1770467602699,
+      "tag": "0000_spooky_millenium_guard",
       "breakpoints": true
     }
   ]
