@@ -1,33 +1,21 @@
-import getDomain from "../lib/getDomain";
+import { getPosts } from "../lib/posts";
+import Blogcard from './card';
+import { helloWorld } from '../lib/db';
 
-// Make this page dynamic - don't try to pre-render at build time
+//Make this page dynamic - don't try to pre-render at build time
 export const dynamic = 'force-dynamic';
 
-// fetch caching options - look up something and store it in memory
-
-// force-cache is default - look up only once when been built and thats it 
-// revalidate: 60 (60 seconds) - look up again after 60 seconds and store it in memory
-// no store: will trigger it everytime blogpage is rendered
+// Direct data fetching (recommended for Server Components)
+// This avoids HTTP overhead and works reliably in Vercel
 async function getData() {
-    const domain = getDomain();
-    const endpoint = `${domain}/api/posts`;
-    const res = await fetch(endpoint, {
-      cache: 'no-store' // Always fetch fresh data
-    });
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch data");
-  }
-
-  if (res.headers.get("Content-Type") !== "application/json") {
-    return {items: []} }
-  return res.json();
- 
+  const posts = await getPosts();
+  return { posts };
 }
 
 export default async function BlogPage() {
   const data = await getData();
-  //console.log(data);
+  const dbHello = await helloWorld();
+  console.log(dbHello);
   return (
     <main>
       <h1>Dana was here</h1>
@@ -39,3 +27,15 @@ export default async function BlogPage() {
     </main>
   );
 }
+export const runtime = 'edge'; //node.js -- whenever you use Neon
+export const preferredRegion = 'iad1'; //use the closest region to the user
+
+
+async function configureDatabase() {
+  const dbConfig = await configureDatabase();
+  console.log("Database configuration:", dbConfig);
+}
+
+configureDatabase().catch(error => {
+  console.log('Error configuring database:', error);
+});
